@@ -1,0 +1,102 @@
+#circular-menu {
+    position: relative;
+    z-index: 1000;
+}
+
+#circular-menu-items {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    width: 200px;
+    height: 200px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#circular-menu-items button {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(0deg) translateY(0);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Position for each button when menu is open */
+#circular-menu-items.open button {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#circular-menu-items.open #reset-progress {
+    transform: rotate(-135deg) translateX(100px);
+    transition-delay: 0s;
+}
+
+#circular-menu-items.open #delete-all {
+    transform: rotate(-45deg) translateX(100px);
+    transition-delay: 0.1s;
+}
+
+#circular-menu-items.open #theme-toggle {
+    transform: rotate(45deg) translateX(100px);
+    transition-delay: 0.2s;
+}
+
+#circular-menu-items.open #login-btn {
+    transform: rotate(135deg) translateX(100px);
+    transition-delay: 0.3s;
+}
+
+/* Menu closing animation */
+#circular-menu-items:not(.open) #reset-progress {
+    transition-delay: 0.3s;
+}
+
+#circular-menu-items:not(.open) #delete-all {
+    transition-delay: 0.2s;
+}
+
+#circular-menu-items:not(.open) #theme-toggle {
+    transition-delay: 0.1s;
+}
+
+#circular-menu-items:not(.open) #login-btn {
+    transition-delay: 0s;
+}
+
+/* Main menu button rotation */
+#main-option {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#circular-menu.active #main-option {
+    transform: rotate(180deg);
+}
+
+/* Tooltip styles */
+/* Re-adjusted tooltip styles to ensure visibility */
+button[title] {
+    position: relative;
+}
+
+button[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    top: 100%; /* Changed from bottom to top to display above */
+    left: 50%;
+    transform: translateX(-50%) translateY(5px); /* Adjusted translateY for spacing */
+    padding: 4px 8px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1002; /* Increased z-index to be above other elements if needed */
+    opacity: 1; /* Ensure opacity is 1 on hover */
+    pointer-events: none; /* Allows clicks to pass through the tooltip */
+}
