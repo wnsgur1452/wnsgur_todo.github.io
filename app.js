@@ -678,37 +678,67 @@ resetProgressButton.addEventListener('click', () => {
 
 // Update reset button visibility
 function updateResetButtonVisibility() {
-    if (currentCategory === 'normal' || currentCategory === 'all') {
-        manualReset.classList.add('hidden');
-    } else {
+    const resetInfo = document.getElementById('reset-info');
+    const resetProgressButton = document.getElementById('reset-progress');
+    
+    // Daily나 Weekly 카테고리에서만 리셋 관련 UI 표시
+    if (currentCategory === 'daily' || currentCategory === 'weekly') {
         const hasTasks = todos[currentCategory].length > 0;
+        
+        // 할 일이 있을 때만 리셋 UI 표시
         if (hasTasks) {
             manualReset.classList.remove('hidden');
+            resetInfo.classList.remove('hidden');
+            
+            // 카테고리에 따른 리셋 시간 텍스트 업데이트
+            const resetTimeText = currentCategory === 'daily' ? 
+                'Resets daily at 6 AM' : 
+                'Resets Monday at 6 AM';
+            document.getElementById('reset-time').textContent = resetTimeText;
         } else {
             manualReset.classList.add('hidden');
+            resetInfo.classList.add('hidden');
+            resetProgressButton.classList.add('hidden');
         }
     }
 }
 
 // Circular Menu Toggle
-mainOption.addEventListener('click', (e) => {
-    e.stopPropagation(); // 이벤트 버블링 방지
-    isMenuOpen = !isMenuOpen;
-    if (isMenuOpen) {
-        circularMenuItems.classList.add('open');
-        mainOption.parentElement.classList.add('active');
-    } else {
-        circularMenuItems.classList.remove('open');
-        mainOption.parentElement.classList.remove('active');
-    }
+mainOption.addEventListener('click', () => {
+    const circularMenu = document.getElementById('circular-menu');
+    const isActive = circularMenu.classList.toggle('active');
+    circularMenuItems.classList.toggle('open', isActive);
+});
+
+// Menu item click handlers
+resetProgressButton.addEventListener('click', () => {
+    // 진행 상황 초기화 로직
+    isMenuOpen = false;
+    document.getElementById('circular-menu').classList.remove('active');
+    circularMenuItems.classList.remove('open');
+});
+
+deleteAllButton.addEventListener('click', () => {
+    // 모든 항목 삭제 로직
+    isMenuOpen = false;
+    document.getElementById('circular-menu').classList.remove('active');
+    circularMenuItems.classList.remove('open');
+});
+
+loginBtn.addEventListener('click', () => {
+    // 로그인 로직
+    isMenuOpen = false;
+    document.getElementById('circular-menu').classList.remove('active');
+    circularMenuItems.classList.remove('open');
 });
 
 // Close menu when clicking outside
-document.addEventListener('click', (e) => {
-    // 메뉴를 클릭했을 때만 닫히지 않도록
-    if (isMenuOpen && !e.target.closest('#circular-menu')) {
-        isMenuOpen = false;
+document.addEventListener('click', (event) => {
+    const circularMenu = document.getElementById('circular-menu');
+    if (!circularMenu.contains(event.target) && circularMenuItems.classList.contains('open')) {
+        circularMenu.classList.remove('active');
         circularMenuItems.classList.remove('open');
+        isMenuOpen = false;
     }
 });
 

@@ -1,17 +1,25 @@
 #circular-menu {
     position: relative;
     z-index: 1000;
+    margin-bottom: 1rem; /* add 버튼 기준으로 위치 조정 */
 }
 
 #circular-menu-items {
     position: absolute;
-    pointer-events: none;
-    z-index: 1000;
-    width: 200px;
-    height: 200px;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0);
+    width: 160px;  /* 부채꼴을 위해 크기 증가 */
+    height: 160px;
+    opacity: 0;
+    transition: all 0.4s ease-out;
+    pointer-events: none;
+}
+
+#circular-menu-items.open {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 #circular-menu-items button {
@@ -20,83 +28,103 @@
     height: 32px;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) rotate(0deg) translateY(0);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0;
-    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.5);
 }
 
 /* Position for each button when menu is open */
 #circular-menu-items.open button {
     opacity: 1;
-    pointer-events: auto;
 }
 
 #circular-menu-items.open #reset-progress {
-    transform: rotate(-135deg) translateX(100px);
+    transform: translate(-50%, -50%) rotate(-120deg) translate(70px) rotate(120deg);  /* 시작점: -120도 */
     transition-delay: 0s;
 }
 
 #circular-menu-items.open #delete-all {
-    transform: rotate(-45deg) translateX(100px);
+    transform: translate(-50%, -50%) rotate(-67deg) translate(70px) rotate(67deg);  /* -120 + 53 = -67도 */
     transition-delay: 0.1s;
 }
 
 #circular-menu-items.open #theme-toggle {
-    transform: rotate(45deg) translateX(100px);
+    transform: translate(-50%, -50%) rotate(-14deg) translate(70px) rotate(14deg);  /* -67 + 53 = -14도 */
     transition-delay: 0.2s;
 }
 
 #circular-menu-items.open #login-btn {
-    transform: rotate(135deg) translateX(100px);
+    transform: translate(-50%, -50%) rotate(40deg) translate(70px) rotate(-40deg);  /* -14 + 54 = 40도 */
     transition-delay: 0.3s;
 }
 
 /* Menu closing animation */
-#circular-menu-items:not(.open) #reset-progress {
-    transition-delay: 0.3s;
-}
-
-#circular-menu-items:not(.open) #delete-all {
-    transition-delay: 0.2s;
-}
-
-#circular-menu-items:not(.open) #theme-toggle {
-    transition-delay: 0.1s;
-}
-
-#circular-menu-items:not(.open) #login-btn {
+#circular-menu-items:not(.open) button {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
     transition-delay: 0s;
 }
 
-/* Main menu button rotation */
-#main-option {
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+#reset-info {
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* 우측 정렬로 변경 */
+    gap: 1rem; /* 텍스트와 버튼 사이 간격 */
 }
 
-#circular-menu.active #main-option {
-    transform: rotate(180deg);
+#reset-time {
+    color: #6B7280;  /* gray-500 */
+    margin-right: auto; /* 텍스트는 좌측에 붙이기 */
 }
 
-/* Tooltip styles */
-/* Re-adjusted tooltip styles to ensure visibility */
-button[title] {
+.dark #reset-time {
+    color: #9CA3AF;  /* dark:gray-400 */
+}
+
+#manual-reset {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    margin-right: 1.5rem; /* 우측 여백 추가 */
+}
+
+.dark #manual-reset {
+    background-color: rgba(31, 41, 55, 0.9) !important;
+    border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+#todo-form {
     position: relative;
 }
 
+/* Tooltip styles 수정 */
 button[title]:hover::after {
     content: attr(title);
     position: absolute;
-    top: 100%; /* Changed from bottom to top to display above */
+    bottom: 120%;
     left: 50%;
-    transform: translateX(-50%) translateY(5px); /* Adjusted translateY for spacing */
+    transform: translateX(-50%);
     padding: 4px 8px;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     border-radius: 4px;
     font-size: 12px;
     white-space: nowrap;
-    z-index: 1002; /* Increased z-index to be above other elements if needed */
-    opacity: 1; /* Ensure opacity is 1 on hover */
-    pointer-events: none; /* Allows clicks to pass through the tooltip */
+    z-index: 1002;
+    opacity: 1;
+    pointer-events: none;
+}
+
+/* manual-reset 버튼의 기존 툴팁 숨기기 */
+#manual-reset span.absolute {
+    display: none !important;
+}
+
+/* 원형 메뉴 버튼들의 tooltip 위치 조정 */
+#circular-menu-items button[title]:hover::after {
+    bottom: auto;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
 }
