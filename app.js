@@ -646,6 +646,7 @@ manualReset.addEventListener('click', () => {
         saveTodos();
         renderTodos();
         updateTodoCount();
+        updateResetInfo();
     }
 });
 
@@ -679,26 +680,27 @@ resetProgressButton.addEventListener('click', () => {
 // Update reset button visibility
 function updateResetButtonVisibility() {
     const resetInfo = document.getElementById('reset-info');
-    const resetProgressButton = document.getElementById('reset-progress');
     
-    // Daily나 Weekly 카테고리에서만 리셋 관련 UI 표시
-    if (currentCategory === 'daily' || currentCategory === 'weekly') {
+    if (currentCategory === 'normal' || currentCategory === 'all') {
+        // normal이나 all 카테고리에서는 숨김
+        manualReset.classList.add('hidden');
+        resetInfo.classList.add('hidden');
+    } else if (currentCategory === 'daily' || currentCategory === 'weekly') {
         const hasTasks = todos[currentCategory].length > 0;
         
-        // 할 일이 있을 때만 리셋 UI 표시
+        // Daily나 Weekly 카테고리에서만 리셋 UI 표시
         if (hasTasks) {
             manualReset.classList.remove('hidden');
             resetInfo.classList.remove('hidden');
             
             // 카테고리에 따른 리셋 시간 텍스트 업데이트
             const resetTimeText = currentCategory === 'daily' ? 
-                'Resets daily at 6 AM' : 
+                'Resets at 6 AM' : 
                 'Resets Monday at 6 AM';
             document.getElementById('reset-time').textContent = resetTimeText;
         } else {
             manualReset.classList.add('hidden');
             resetInfo.classList.add('hidden');
-            resetProgressButton.classList.add('hidden');
         }
     }
 }

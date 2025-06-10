@@ -70,7 +70,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.4rem 1.5rem; /* 좌우 패딩 증가 */
-    margin: 0.25rem 0; /* 상하 마진 균일하게 설정 */
+    margin: 0 0 0.35rem 0; /* 위쪽 마진 0, 아래쪽 마진만 0.35rem */
     background-color: rgba(255, 255, 255, 0.5);
     border-radius: 0.5rem;
 }
