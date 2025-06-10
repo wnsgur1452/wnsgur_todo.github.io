@@ -151,31 +151,34 @@ function updateCategoryButtons() {
 function updateResetInfo() {
     if (currentCategory === 'all' || currentCategory === 'normal') {
         resetInfo.classList.add('hidden');
-        manualReset.classList.add('hidden');
         return;
     }
 
     resetInfo.classList.remove('hidden');
+    manualReset.classList.remove('hidden');
     const now = new Date();
     let nextReset;
+    let resetText;
 
     if (currentCategory === 'daily') {
         nextReset = new Date(now);
+        nextReset.setHours(6, 0, 0, 0);
         if (now.getHours() >= 6) {
             nextReset.setDate(nextReset.getDate() + 1);
         }
-        nextReset.setHours(6, 0, 0, 0);
-        resetTime.textContent = `Resets daily at 6 AM`;
+        resetText = '매일 오전 6시 초기화';
     } else if (currentCategory === 'weekly') {
         nextReset = new Date(now);
-        const daysUntilMonday = (8 - nextReset.getDay()) % 7 || 7;
-        nextReset.setDate(nextReset.getDate() + daysUntilMonday);
         nextReset.setHours(6, 0, 0, 0);
-        if (now.getDay() === 1 && now.getHours() >= 6) {
-            nextReset.setDate(nextReset.getDate() + 7);
+        let daysUntilMonday = 1 - now.getDay();
+        if (daysUntilMonday <= 0 || (daysUntilMonday === 0 && now.getHours() >= 6)) {
+            daysUntilMonday += 7;
         }
-        resetTime.textContent = `Resets Monday at 6 AM`;
+        nextReset.setDate(nextReset.getDate() + daysUntilMonday);
+        resetText = '매주 월요일 오전 6시 초기화';
     }
+
+    resetTime.textContent = resetText;
 }
 
 // Format time

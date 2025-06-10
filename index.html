@@ -14,16 +14,16 @@
     <link rel="stylesheet" href="style.css">
     <script src="app.js" defer></script>
   </head>
-  <body class="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-purple-900 dark:via-gray-900 dark:to-black min-h-screen flex items-center justify-center p-4 font-['Poppins'] transition-colors duration-300">
-    <div class="bg-white/80 dark:bg-gray-800/50 backdrop-blur-xl shadow-2xl rounded-2xl p-8 w-full max-w-lg border border-gray-200 dark:border-gray-700/50 transition-colors duration-300">      <header class="flex items-center justify-between mb-8 bg-gray-50/80 dark:bg-gray-700/80 rounded-xl p-4 shadow-sm backdrop-blur-sm">
-          <h1 class="text-3xl font-semibold bg-gradient-to-r from-blue-500 to-purple-500 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent whitespace-nowrap">My Tasks</h1>          <div class="flex items-center gap-4">
+  <body class="bg-gradient-to-br from-blue-100 to-purple-100 dark:from-purple-900 dark:via-gray-900 dark:to-black min-h-screen flex items-center justify-center p-4 font-['Poppins'] transition-colors duration-300">    <div class="bg-white/80 dark:bg-gray-800/50 backdrop-blur-xl shadow-2xl rounded-2xl p-4 sm:p-8 w-full max-w-lg border border-gray-200 dark:border-gray-700/50 transition-colors duration-300">      
+      <header class="flex flex-col sm:flex-row items-center gap-4 sm:justify-between mb-8 bg-gray-50/80 dark:bg-gray-700/80 rounded-xl p-4 shadow-sm backdrop-blur-sm">
+          <h1 class="text-3xl font-semibold bg-gradient-to-r from-blue-500 to-purple-500 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent whitespace-nowrap">My Tasks</h1>          
+          <div class="flex items-center gap-4 flex-shrink-0">
             <div class="flex items-center h-12 gap-2 px-4 bg-white/90 dark:bg-gray-800/90 rounded-lg shadow-sm">
               <div class="w-24 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                 <div id="progress-bar" class="h-full w-0 bg-gradient-to-r from-blue-500 to-purple-500 dark:from-purple-400 dark:to-pink-400 transition-all duration-500"></div>
               </div>
-              <span id="progress-percent" class="text-xs font-medium text-gray-600 dark:text-gray-300">0%</span>
-            </div>          <div id="circular-menu" class="relative flex items-center">            <button              id="main-option"
-              class="p-3 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm relative z-20 mt-0.5"
+              <span id="progress-percent" class="text-xs font-medium text-gray-600 dark:text-gray-300">0%</span>            </div>          <div id="circular-menu" class="relative flex items-center h-12">            <button              id="main-option"
+              class="p-3 rounded-lg bg-white/90 dark:bg-gray-800/90 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm relative z-20"
               aria-label="메뉴 열기/닫기"
             >
               <svg class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
