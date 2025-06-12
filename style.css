@@ -1,4 +1,4 @@
-/* Z-index hierarchy */
+/* Z-index hierarchy. */
 :root {
     --z-base: 1000;
     --z-menu: 1100;

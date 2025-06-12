@@ -1,4 +1,4 @@
-// Todo List State
+// Todo List State.
 let todos = {
     normal: [],
     daily: [],
