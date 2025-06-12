@@ -33,11 +33,12 @@ const manualReset = document.getElementById('manual-reset');
 // Circular Menu
 const mainOption = document.getElementById('main-option');
 const circularMenuItems = document.getElementById('circular-menu-items');
-const resetProgressButton = document.getElementById('reset-progress'); // 진행 상황 초기화 버튼
-const deleteAllButton = document.getElementById('delete-all'); // 모든 항목 삭제 버튼
+const resetProgressBtn = document.getElementById('reset-progress'); // 진행 상황 초기화 버튼
+const deleteAllBtn = document.getElementById('delete-all'); // 모든 항목 삭제 버튼
 const loginBtn = document.getElementById('login-btn'); // 로그인 버튼
 
 let isMenuOpen = false;
+let menuToggleTimeout = null;
 
 // Dark mode initialization
 function initializeTheme() {
@@ -84,7 +85,6 @@ function setCategory(category) {
     currentCategory = category;
     updateCategoryButtons();
     updateResetInfo();
-    updateResetButtonVisibility();
     updateDeadlineVisibility();
     renderTodos();
 }
@@ -128,11 +128,23 @@ function updateFilterButtons() {
 
 // Update category buttons UI
 function updateCategoryButtons() {
-    [categoryAll, categoryNormal, categoryDaily, categoryWeekly].forEach(btn => {
-        btn.classList.add('opacity-50');
+    // Get all category buttons
+    const categoryButtons = [categoryAll, categoryNormal, categoryDaily, categoryWeekly];
+    
+    // Remove active class from all buttons
+    categoryButtons.forEach(btn => {
         btn.classList.remove('active');
     });
 
+    // Map for category display names
+    const categoryNames = {
+        'all': 'All Tasks',
+        'normal': 'Normal Tasks',
+        'daily': 'Daily Tasks',
+        'weekly': 'Weekly Tasks'
+    };
+
+    // Add active class to current category button
     const activeButton = {
         'all': categoryAll,
         'normal': categoryNormal,
@@ -141,44 +153,30 @@ function updateCategoryButtons() {
     }[currentCategory];
 
     if (activeButton) {
-        activeButton.classList.remove('opacity-50');
         activeButton.classList.add('active');
+        // Update page title to show current category
+        document.title = `${categoryNames[currentCategory]} - Modern Todo List`;
     }
+
     updateDeadlineVisibility();
 }
 
-// Update reset info
+// Update reset info and visibility
 function updateResetInfo() {
-    if (currentCategory === 'all' || currentCategory === 'normal') {
-        resetInfo.classList.add('hidden');
-        return;
+    // 모든 리셋 관련 UI 요소들을 먼저 숨김
+    resetTime.textContent = '';
+    manualReset.classList.add('hidden');
+    resetInfo.classList.add('hidden');
+    document.querySelectorAll('.reset-info-container-all').forEach(container => container.remove());
+
+    // daily나 weekly 카테고리이면서 할 일이 있는 경우에만 리셋 정보를 표시
+    if ((currentCategory === 'daily' || currentCategory === 'weekly') && todos[currentCategory].length > 0) {
+        manualReset.classList.remove('hidden');
+        resetInfo.classList.remove('hidden');
+        resetTime.textContent = currentCategory === 'daily' ? 
+            'Resets daily at 6 AM' : 
+            'Resets Monday at 6 AM';
     }
-
-    resetInfo.classList.remove('hidden');
-    manualReset.classList.remove('hidden');
-    const now = new Date();
-    let nextReset;
-    let resetText;
-
-    if (currentCategory === 'daily') {
-        nextReset = new Date(now);
-        nextReset.setHours(6, 0, 0, 0);
-        if (now.getHours() >= 6) {
-            nextReset.setDate(nextReset.getDate() + 1);
-        }
-        resetText = '매일 오전 6시 초기화';
-    } else if (currentCategory === 'weekly') {
-        nextReset = new Date(now);
-        nextReset.setHours(6, 0, 0, 0);
-        let daysUntilMonday = 1 - now.getDay();
-        if (daysUntilMonday <= 0 || (daysUntilMonday === 0 && now.getHours() >= 6)) {
-            daysUntilMonday += 7;
-        }
-        nextReset.setDate(nextReset.getDate() + daysUntilMonday);
-        resetText = '매주 월요일 오전 6시 초기화';
-    }
-
-    resetTime.textContent = resetText;
 }
 
 // Format time
@@ -222,20 +220,29 @@ function checkResets() {
     renderTodos();
 }
 
-// Save todos to localStorage
+// Save todos to localStorage with proper handling
 function saveTodos() {
-    const username = localStorage.getItem('username');
-    const key = username ? `todos_${username}` : 'todos';
-    localStorage.setItem(key, JSON.stringify(todos));
+    try {
+        const username = localStorage.getItem('username');
+        const key = username ? `todos_${username}` : 'todos';
+        localStorage.setItem(key, JSON.stringify(todos));
+    } catch (error) {
+        console.error('Failed to save todos:', error);
+    }
 }
 
-// Load todos from localStorage
+// Load todos from localStorage with proper handling
 function loadTodos() {
-    const username = localStorage.getItem('username');
-    const key = username ? `todos_${username}` : 'todos';
-    const savedTodos = localStorage.getItem(key);
-    if (savedTodos) {
-        todos = JSON.parse(savedTodos);
+    try {
+        const username = localStorage.getItem('username');
+        const key = username ? `todos_${username}` : 'todos';
+        const savedTodos = localStorage.getItem(key);
+        if (savedTodos) {
+            todos = JSON.parse(savedTodos);
+        }
+    } catch (error) {
+        console.error('Failed to load todos:', error);
+        todos = { normal: [], daily: [], weekly: [] };
     }
 }
 
@@ -303,33 +310,25 @@ function formatTimeRemaining(deadline) {
 
 // Update deadline visibility and form visibility
 function updateDeadlineVisibility() {
-    const todoForm = document.getElementById('todo-form');
-
     if (currentCategory === 'all') {
         todoForm.classList.add('hidden');
         deadlineSection.classList.add('hidden');
-        resetInfo.classList.add('hidden');
+        return;
+    }
+
+    // Show todo form for all non-all categories
+    todoForm.classList.remove('hidden');
+
+    // Show deadline section only for normal category
+    if (currentCategory === 'normal') {
+        deadlineSection.classList.remove('hidden');
+        deadlineInputContainer.classList.toggle('hidden', !isDeadlineEnabled);
     } else {
-        todoForm.classList.remove('hidden');
-
-        if (currentCategory === 'normal') {
-            deadlineSection.classList.remove('hidden');
-            if (deadlineToggle.classList.contains('bg-blue-500')) {
-                deadlineInputContainer.classList.remove('hidden');
-            }
-        } else {
-            deadlineSection.classList.add('hidden');
-            deadlineInputContainer.classList.add('hidden');
-            deadlineToggle.classList.remove('bg-blue-500');
-            deadlineToggle.querySelector('div').classList.remove('translate-x-6');
-            isDeadlineEnabled = false;
-        }
-
-        if (currentCategory !== 'normal' && currentCategory !== 'all') {
-            resetInfo.classList.remove('hidden');
-        } else {
-            resetInfo.classList.add('hidden');
-        }
+        deadlineSection.classList.add('hidden');
+        deadlineInputContainer.classList.add('hidden');
+        deadlineToggle.classList.remove('bg-blue-500');
+        deadlineToggle.querySelector('div').classList.remove('translate-x-6');
+        isDeadlineEnabled = false;
     }
 }
 
@@ -341,41 +340,15 @@ deadlineToggle.addEventListener('click', () => {
     deadlineInputContainer.classList.toggle('hidden', !isDeadlineEnabled);
 });
 
-// Add todo with deadline support
-document.getElementById('todo-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const input = document.getElementById('todo-input');
-    const text = input.value.trim();
+// Task type priority order
+const taskTypePriority = {
+    boss: 1,
+    external: 2,
+    friend: 3,
+    personal: 4
+};
 
-    if (text) {
-        const deadline = currentCategory === 'normal' && isDeadlineEnabled ? deadlineInput.value : '';
-
-        todos[currentCategory].push({
-            id: generateUniqueId(), // Add unique ID
-            text,
-            completed: false,
-            deadline
-        });
-
-        input.value = '';
-        if (isDeadlineEnabled) deadlineInput.value = '';
-
-        saveTodos();
-        renderTodos();
-    }
-});
-
-// Update deadlines every second
-setInterval(() => {
-    document.querySelectorAll('.deadline-time').forEach(span => {
-        const deadline = span.getAttribute('data-deadline');
-        if (deadline) {
-            span.textContent = formatTimeRemaining(deadline);
-        }
-    });
-}, 1000);
-
-// Render Todos
+// Render todos
 function renderTodos() {
     const todoList = document.getElementById('todo-list');
     todoList.innerHTML = '';
@@ -384,10 +357,7 @@ function renderTodos() {
     if (currentCategory === 'all') {
         Object.entries(todos).forEach(([category, categoryTodos]) => {
             todosToRender = todosToRender.concat(
-                categoryTodos.map(todo => ({
-                    ...todo,
-                    category // Add category to todo object
-                }))
+                categoryTodos.map(todo => ({ ...todo, category }))
             );
         });
     } else {
@@ -404,87 +374,8 @@ function renderTodos() {
         todosToRender = todosToRender.filter(todo => todo.completed);
     }
 
-    // Sort todos (grouped by category for 'all' view)
-    todosToRender.sort((a, b) => {
-        const now = new Date();
-
-        const getTimeValue = (todo) => {
-            if (todo.deadline) {
-                const deadlineDate = new Date(todo.deadline);
-                return isNaN(deadlineDate) ? Infinity : deadlineDate.getTime();
-            } else if (todo.category === 'daily') {
-                const nextReset = new Date(now);
-                if (now.getHours() >= 6) {
-                    nextReset.setDate(nextReset.getDate() + 1);
-                }
-                nextReset.setHours(6, 0, 0, 0);
-                return nextReset.getTime();
-            } else if (todo.category === 'weekly') {
-                const nextReset = new Date(now);
-                const daysUntilMonday = (8 - nextReset.getDay()) % 7 || 7;
-                nextReset.setDate(nextReset.getDate() + daysUntilMonday);
-                nextReset.setHours(6, 0, 0, 0);
-                return nextReset.getTime();
-            }
-            return Infinity;
-        };
-
-        // Sort by category first in 'all' view, then by deadline/reset
-        if (currentCategory === 'all') {
-            const categoryOrder = { daily: 0, weekly: 1, normal: 2 }; // Define order
-            const categoryDiff = categoryOrder[a.category] - categoryOrder[b.category];
-            if (categoryDiff !== 0) return categoryDiff;
-        }
-
-        return getTimeValue(a) - getTimeValue(b);
-    });
-
-
-    // Remove any existing reset info container for 'all' category before re-rendering
-    const existingResetContainer = document.querySelector('.reset-info-container-all');
-    if (existingResetContainer) {
-        existingResetContainer.remove();
-    }
-
-    // Display reset information for All category (only if there are daily/weekly tasks)
-    const filterContainer = document.querySelector('.filter-container');
-    if (currentCategory === 'all') {
-        const hasDaily = todos.daily.length > 0;
-        const hasWeekly = todos.weekly.length > 0;
-
-        if (hasDaily || hasWeekly) {
-            const resetContainer = document.createElement('div');
-            resetContainer.className = 'mb-4 text-center text-sm text-gray-500 dark:text-gray-400 reset-info-container-all';
-
-            let resetText = '';
-            if (hasDaily && hasWeekly) {
-                resetText = 'Daily tasks reset at 6 AM / Weekly tasks reset Monday 6 AM';
-            } else if (hasDaily) {
-                resetText = 'Daily tasks reset at 6 AM';
-            } else if (hasWeekly) {
-                resetText = 'Weekly tasks reset Monday 6 AM';
-            }
-            resetContainer.textContent = resetText;
-
-            // Insert before the filter container
-            const parent = filterContainer.parentNode;
-            parent.insertBefore(resetContainer, filterContainer);
-        }
-    }
-
-
-    // Render filtered todos
-    let currentDisplayedCategory = ''; // 카테고리 헤더 중복 방지를 위한 변수
-    todosToRender.forEach((todo, idx) => {
-        // Add category header for categories in All view
-        if (currentCategory === 'all' && currentDisplayedCategory !== todo.category) {
-            currentDisplayedCategory = todo.category;
-            const categoryHeader = document.createElement('div');
-            categoryHeader.className = 'text-lg font-semibold text-gray-700 dark:text-gray-200 mt-4 mb-2';
-            categoryHeader.textContent = todo.category.charAt(0).toUpperCase() + todo.category.slice(1) + ' Tasks';
-            todoList.appendChild(categoryHeader);
-        }
-
+    // Render each todo
+    todosToRender.forEach(todo => {
         const li = document.createElement('li');
         const isDark = document.documentElement.classList.contains('dark');
 
@@ -494,118 +385,118 @@ function renderTodos() {
             isDark ? 'border-gray-700/50 hover:border-purple-500/50' : 'border-gray-200 hover:border-blue-500/50'
         } transition-all shadow-sm`;
 
+        // Left section with checkbox and text
         const leftSection = document.createElement('div');
-        leftSection.className = 'flex items-center gap-4 flex-1';
-
+        leftSection.className = 'flex items-center gap-4 flex-1 min-w-0';
+        
         const checkbox = document.createElement('button');
-        checkbox.className = `w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+        checkbox.className = `min-w-[20px] min-h-[20px] w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
             todo.completed
                 ? (isDark ? 'border-purple-500 bg-purple-500' : 'border-blue-500 bg-blue-500')
                 : (isDark ? 'border-gray-600' : 'border-gray-300')
         }`;
+
         if (todo.completed) {
             checkbox.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
         }
-        // Pass the actual todo object for deletion/toggling to correctly find its index in the original array
+
         checkbox.onclick = () => toggleTodo(todo.category, todo.id);
 
+        // Text content with category tag
         const textContent = document.createElement('div');
-        textContent.className = 'flex items-center';
+        textContent.className = 'flex items-center min-w-0 flex-1';
 
-        const text = document.createElement('span');
-        text.className = todo.completed
-            ? 'line-through text-gray-400'
-            : (isDark ? 'text-white' : 'text-gray-800');
-        text.textContent = todo.text;
+        // Create wrapper for text and tags
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'flex flex-col gap-1 min-w-0';
 
-        textContent.appendChild(text);
+        // Add main text with smaller size
+        const mainText = document.createElement('span');
+        mainText.textContent = todo.text;
+        mainText.className = 'text-sm truncate';
 
-        if (currentCategory === 'all') {
-            const categoryTag = document.createElement('span');
-            categoryTag.className = 'text-xs font-medium px-2 py-1 rounded-full ml-2';
-
-            const categoryColors = {
-                normal: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-                daily: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-                weekly: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
-            };
-
-            categoryTag.className += ' ' + categoryColors[todo.category];
-            categoryTag.textContent = todo.category.charAt(0).toUpperCase() + todo.category.slice(1);
-            textContent.appendChild(categoryTag);
-        }
-
+        // Right section for deadline, edit and delete buttons
         const rightSection = document.createElement('div');
-        rightSection.className = 'flex items-center gap-3';
+        rightSection.className = 'flex items-center gap-3 ml-4';
 
-        const now = new Date();
-        const getTimeLeft = (todoItem) => {
-            if (todoItem.deadline) {
-                const deadlineDate = new Date(todoItem.deadline);
-                return isNaN(deadlineDate) ? Infinity : deadlineDate.getTime() - now.getTime();
-            } else if (todoItem.category === 'daily') {
-                const nextReset = new Date();
-                if (now.getHours() >= 6) {
-                    nextReset.setDate(nextReset.getDate() + 1);
-                }
-                nextReset.setHours(6, 0, 0, 0);
-                return nextReset.getTime() - now.getTime();
-            } else if (todoItem.category === 'weekly') {
-                const nextReset = new Date();
-                const daysUntilMonday = (8 - nextReset.getDay()) % 7 || 7;
-                nextReset.setDate(nextReset.getDate() + daysUntilMonday);
-                nextReset.setHours(6, 0, 0, 0);
-                return nextReset.getTime() - now.getTime();
-            }
-            return Infinity;
-        };
-
-        const timeLeft = getTimeLeft(todo);
-        const priorityColors = {
-            high: 'bg-red-500',
-            medium: 'bg-yellow-500',
-            low: 'bg-green-500'
-        };
-
-        let priority = 'low';
-        const hoursLeft = timeLeft / (1000 * 60 * 60);
-
-        if (todo.deadline || todo.category === 'daily' || todo.category === 'weekly') {
-             if (hoursLeft <= 12 && timeLeft > 0) { // 마감 기한이 12시간 이내이고 아직 지나지 않았을 때
-                priority = 'high';
-            } else if (hoursLeft <= 24 && timeLeft > 0) { // 마감 기한이 24시간 이내이고 아직 지나지 않았을 때
-                priority = 'medium';
-            } else if (timeLeft <= 0) { // 마감 기한이 지났을 때
-                priority = 'high'; // 지난 항목도 중요하게 표시할 수 있도록
-            } else {
-                priority = 'low';
-            }
-        }
-
-        const priorityIndicator = document.createElement('div');
-        priorityIndicator.className = `w-2 h-2 rounded-full ${priorityColors[priority]} transition-colors duration-200`;
-        if (todo.deadline || todo.category === 'daily' || todo.category === 'weekly') {
-            rightSection.appendChild(priorityIndicator);
-        }
-
+        // Add deadline if exists
         if (todo.deadline) {
             const deadlineEl = document.createElement('span');
-            deadlineEl.className = 'text-sm text-gray-500 dark:text-gray-400 deadline-time'; // 클래스 추가
-            deadlineEl.setAttribute('data-deadline', todo.deadline); // 데이터 속성 추가
+            deadlineEl.className = 'text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap';
+            deadlineEl.setAttribute('data-deadline', todo.deadline);
             deadlineEl.textContent = formatTimeRemaining(todo.deadline);
             rightSection.appendChild(deadlineEl);
         }
 
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity';
-        deleteBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
-        // Pass the actual todo object for deletion/toggling to correctly find its index in the original array
-        deleteBtn.onclick = () => deleteTodo(todo.category, todo.id);
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'text-gray-600 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity';
+        editBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
+        editBtn.onclick = () => showEditModal(todo);
+        rightSection.appendChild(editBtn);
 
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity';
+        deleteBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+        deleteBtn.onclick = () => deleteTodo(todo.category, todo.id);
         rightSection.appendChild(deleteBtn);
 
+        // Create container for tags and task type
+        const tagContainer = document.createElement('div');
+        tagContainer.className = 'flex flex-wrap gap-1';
+        
+        // Add task type indicator if exists and is not empty
+        if (todo.taskType && todo.taskType !== '') {
+            const typeIndicator = document.createElement('span');
+            typeIndicator.className = `text-xs px-2 py-0.5 rounded-full ${
+                {
+                    personal: 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300',
+                    friend: 'bg-green-200 text-green-700 dark:bg-green-800 dark:text-green-300',
+                    boss: 'bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-300',
+                    external: 'bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-300'
+                }[todo.taskType]
+            }`;
+            typeIndicator.textContent = translations[currentLanguage].taskTypes[todo.taskType];
+            tagContainer.appendChild(typeIndicator);
+        }
+        
+        // Add tags if exist
+        if (todo.tags && todo.tags.length > 0) {
+            todo.tags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+                tagEl.textContent = tag;
+                tagContainer.appendChild(tagEl);
+            });
+        }
+        
+        // Add category tag in all view
+        if (currentCategory === 'all') {
+            const categoryTag = document.createElement('span');
+            categoryTag.className = `text-xs px-2 py-0.5 rounded-full ${
+                {
+                    normal: 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300',
+                    daily: 'bg-green-200 text-green-700 dark:bg-green-800 dark:text-green-300',
+                    weekly: 'bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-300'
+                }[todo.category]
+            }`;
+            categoryTag.textContent = translations[currentLanguage].categories[todo.category];
+            tagContainer.appendChild(categoryTag);
+        }
+
+        // Add tag container if it has any content
+        if (tagContainer.children.length > 0) {
+            contentWrapper.appendChild(mainText);
+            contentWrapper.appendChild(tagContainer);
+        } else {
+            contentWrapper.appendChild(mainText);
+        }
+
+        textContent.appendChild(contentWrapper);
         leftSection.appendChild(checkbox);
         leftSection.appendChild(textContent);
+        
         li.appendChild(leftSection);
         li.appendChild(rightSection);
         todoList.appendChild(li);
@@ -615,10 +506,9 @@ function renderTodos() {
     updateResetInfo();
 }
 
-// Toggle Complete
+// Toggle todo completion
 function toggleTodo(category, id) {
     const todoIndex = todos[category].findIndex(todo => todo.id === id);
-    
     if (todoIndex !== -1) {
         todos[category][todoIndex].completed = !todos[category][todoIndex].completed;
         saveTodos();
@@ -626,10 +516,9 @@ function toggleTodo(category, id) {
     }
 }
 
-// Delete Todo
+// Delete todo
 function deleteTodo(category, id) {
     const todoIndex = todos[category].findIndex(todo => todo.id === id);
-
     if (todoIndex !== -1) {
         todos[category].splice(todoIndex, 1);
         saveTodos();
@@ -637,157 +526,1111 @@ function deleteTodo(category, id) {
     }
 }
 
-// Manual reset button functionality
-manualReset.addEventListener('click', () => {
-    const category = currentCategory;
-    if (category !== 'daily' && category !== 'weekly') return;
+// Toggle extended form
+function toggleExtendedForm(show) {
+    const extendedForm = document.getElementById('todo-form-extended');
+    if (show) {
+        extendedForm.classList.remove('hidden');
+        setTimeout(() => {
+            extendedForm.classList.add('show');
+            extendedForm.style.maxHeight = extendedForm.scrollHeight + 'px';
+            extendedForm.style.opacity = '1';
+            extendedForm.style.marginTop = '0.5rem';
+        }, 0);
+    } else {
+        extendedForm.classList.remove('show');
+        extendedForm.style.maxHeight = '0';
+        extendedForm.style.opacity = '0';
+        extendedForm.style.marginTop = '0';
+        setTimeout(() => {
+            extendedForm.classList.add('hidden');
+        }, 300);
+    }
+}
 
-    if (confirm(`${category === 'daily' ? '일간' : '주간'} 항목들의 달성률을 초기화하시겠습니까?`)) {
-        todos[category].forEach(todo => {
-            todo.completed = false;
+// Add focus event listener to todo input
+document.getElementById('todo-input').addEventListener('focus', () => {
+    toggleExtendedForm(true);
+});
+
+// Add blur event listener to todo input
+document.getElementById('todo-input').addEventListener('blur', (e) => {
+    // Check if the related target is within the extended form
+    const extendedForm = document.getElementById('todo-form-extended');
+    if (!e.relatedTarget || !extendedForm.contains(e.relatedTarget)) {
+        const tagsInput = document.getElementById('tags-input');
+        const taskType = document.getElementById('task-type');
+        // Only hide if both fields are empty
+        if ((!tagsInput || !tagsInput.value.trim()) && (!taskType || taskType.value === '')) {
+            toggleExtendedForm(false);
+        }
+    }
+});
+
+// Tag translation and correction system
+const tagMappings = {
+    // Food & Meals (음식/식사)
+    '식사': 'Meal',
+    '밥': 'Meal',
+    '점심': 'Lunch',
+    '저녁': 'Dinner',
+    '아침': 'Breakfast',
+    '간식': 'Snack',
+    '햄버거': 'Hamburger',
+    '피자': 'Pizza',
+    '치킨': 'Chicken',
+    '커피': 'Coffee',
+    '디저트': 'Dessert',
+    '한식': 'Korean Food',
+    '중식': 'Chinese Food',
+    '일식': 'Japanese Food',
+    '양식': 'Western Food',
+    
+    // Sports (팀/구기 스포츠)
+    '축구': 'Soccer',
+    '농구': 'Basketball',
+    '야구': 'Baseball',
+    '배구': 'Volleyball',
+    '테니스': 'Tennis',
+    
+    // Fitness (피트니스)
+    '헬스': 'Gym',
+    '웨이트': 'Weight Training',
+    '요가': 'Yoga',
+    '필라테스': 'Pilates',
+    '스트레칭': 'Stretching',
+    
+    // Cardio (유산소)
+    '달리기': 'Running',
+    '조깅': 'Jogging',
+    '수영': 'Swimming',
+    '자전거': 'Cycling',
+    '등산': 'Hiking',
+    
+    // Light Exercise (가벼운 운동)
+    '산책': 'Walking',
+    '스트레칭': 'Stretching',
+    
+    // Study
+    '공부': 'Study',
+    '학습': 'Learning',
+    '독서': 'Reading',
+    '책': 'Book',
+    '과제': 'Assignment',
+    '시험': 'Exam',
+    
+    // Work
+    '업무': 'Work',
+    '회의': 'Meeting',
+    '미팅': 'Meeting',
+    '프로젝트': 'Project',
+    '보고': 'Report',
+    '발표': 'Presentation',
+    
+    // Life
+    '장보기': 'Shopping',
+    '쇼핑': 'Shopping',
+    '청소': 'Cleaning',
+    '빨래': 'Laundry',
+    
+    // Health
+    '병원': 'Hospital',
+    '약': 'Medicine',
+    '건강': 'Health',
+    '검진': 'Check-up',
+    
+    // Entertainment
+    '영화': 'Movie',
+    '게임': 'Game',
+    '음악': 'Music',
+    '공연': 'Performance',
+    '전시': 'Exhibition',
+    
+    // Personal
+    '약속': 'Appointment',
+    '모임': 'Meeting',
+    '여행': 'Travel',
+    '휴가': 'Vacation',
+    '데이트': 'Date'
+};
+
+// Common misspellings and variations
+const spellingSuggestions = {
+    // Food & Meals
+    '식사': ['식사', '식싸', '식살'],
+    '밥': ['밥', '밪', '밧'],
+    '점심': ['점심', '점씸', '접심'],
+    '저녁': ['저녁', '저넉', '저녘'],
+    '아침': ['아침', '아칢', '아침'],
+    '간식': ['간식', '간씩', '간식'],
+    '햄버거': ['햄버거', '햄버그', '햄버어'],
+    '피자': ['피자', '피짜', '피쟈'],
+    '치킨': ['치킨', '치큰', '취킨'],
+    '커피': ['커피', '케피', '커피'],
+    '디저트': ['디저트', '디쩌트', '디저트'],
+    '한식': ['한식', '한씩', '한식'],
+    '중식': ['중식', '중씩', '중식'],
+    '일식': ['일식', '일씩', '일식'],
+    '양식': ['양식', '양씩', '양식'],
+    
+    // Sports
+    '축구': ['축구', '축그', '촉구'],
+    '농구': ['농구', '농그', '눙구'],
+    '야구': ['야구', '야그', '약구'],
+    '배구': ['배구', '배그', '백구'],
+    '테니스': ['테니스', '테니수', '태니스'],
+    
+    // Fitness
+    '헬스': ['헬스', '핼스', '헬쓰'],
+    '요가': ['요가', '요과', '요까'],
+    '필라테스': ['필라테스', '필라테쓰', '필라태스'],
+    
+    // Cardio
+    '달리기': ['달리기', '달르기', '달기'],
+    '조깅': ['조깅', '죠깅', '조낑'],
+    '수영': ['수영', '수형', '수영'],
+    '자전거': ['자전거', '자저거', '자전게'],
+    '등산': ['등산', '등싼', '등상'],
+    
+    // Study
+    '공부': ['공부', '공브', '공뿌'],
+    '학습': ['학습', '학슴', '학습'],
+    '독서': ['독서', '독써', '독소'],
+    
+    // Work
+    '업무': ['업무', '엄무', '업므'],
+    '회의': ['회의', '회이', '회희'],
+    '미팅': ['미팅', '미딩', '밋팅'],
+    
+    // Life
+    '식사': ['식사', '식싸', '식살'],
+    '장보기': ['장보기', '장보끼', '잠보기'],
+    '청소': ['청소', '청쏘', '청소'],
+    
+    // Health
+    '병원': ['병원', '병웜', '병원'],
+    '건강': ['건강', '건깡', '건강'],
+    
+    // Entertainment
+    '영화': ['영화', '영홰', '영화'],
+    '게임': ['게임', '게임', '게입'],
+    
+    // Personal
+    '약속': ['약속', '약쏙', '약속'],
+    '모임': ['모임', '모잉', '모임'],
+    '여행': ['여행', '여앵', '여행']
+};
+
+
+// 한글 자모 분석을 위한 헬퍼 함수들
+function decomposeHangul(char) {
+    const offset = char.charCodeAt(0) - 0xAC00;
+    if (offset < 0 || offset > 11171) return char; // 한글이 아닌 경우
+
+    const jamo = {
+        cho: Math.floor(offset / 28 / 21),
+        jung: Math.floor((offset / 28) % 21),
+        jong: offset % 28
+    };
+
+    const chosung = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+    const jungsung = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+    const jongsung = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+
+    return {
+        cho: chosung[jamo.cho],
+        jung: jungsung[jamo.jung],
+        jong: jongsung[jamo.jong]
+    };
+}
+
+function normalizeHangul(str) {
+    let result = '';
+    let prevJamo = null;
+
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        // 한글 자모인 경우
+        if (/[ㄱ-ㅎㅏ-ㅣ]/.test(char)) {
+            if (prevJamo && char === prevJamo) continue; // 중복된 자모 제거
+            prevJamo = char;
+            result += char;
+        }
+        // 완성형 한글인 경우
+        else if (/[가-힣]/.test(char)) {
+            const decomposed = decomposeHangul(char);
+            result += char;
+            prevJamo = null;
+        }
+        // 그 외의 문자
+        else {
+            result += char;
+            prevJamo = null;
+        }
+    }
+    return result;
+}
+
+// Levenshtein Distance 함수 (오타 교정용)
+function levenshteinDistance(a, b) {
+    const matrix = [];
+    const alen = a.length;
+    const blen = b.length;
+
+    for (let i = 0; i <= blen; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= alen; j++) {
+        matrix[0][j] = j;
+    }
+    for (let i = 1; i <= blen; i++) {
+        for (let j = 1; j <= alen; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1,     // insertion
+                    matrix[i - 1][j] + 1      // deletion
+                );
+            }
+        }
+    }
+    return matrix[blen][alen];
+}
+
+// Function to find the closest match using improved Levenshtein distance with Hangul support
+function findClosestMatch(input, dictionary) {
+    let minDistance = Infinity;
+    let closestMatch = input;
+    const normalizedInput = normalizeHangul(input);
+
+    for (const word of Object.keys(dictionary)) {
+        // First try exact match with normalized input
+        if (normalizedInput === word) {
+            return word;
+        }
+
+        // Calculate distance with normalized strings
+        const distance = levenshteinDistance(normalizedInput, word);
+        
+        // 자모 분석을 통한 추가 유사도 체크
+        let jamoBonus = 0;
+        if (/[가-힣]/.test(input)) {
+            const inputJamo = Array.from(input).map(decomposeHangul);
+            const wordJamo = Array.from(word).map(decomposeHangul);
+            
+            // 초성이 같으면 유사도 증가
+            if (inputJamo[0]?.cho === wordJamo[0]?.cho) jamoBonus += 0.5;
+            // 중성이 같으면 유사도 증가
+            if (inputJamo[0]?.jung === wordJamo[0]?.jung) jamoBonus += 0.3;
+        }
+
+        const adjustedDistance = distance - jamoBonus;
+        
+        if (adjustedDistance < minDistance) {
+            minDistance = adjustedDistance;
+            closestMatch = word;
+        }
+    }
+
+    // 임계값을 2.5로 올려서, 자모 보너스를 고려
+    return minDistance <= 2.5 ? closestMatch : input;
+}
+
+// Language toggle functionality
+const languageToggle = document.getElementById('language-toggle');
+let currentLanguage = localStorage.getItem('language') || 'en';
+
+const translations = {
+    en: {
+        title: 'My Tasks',  // Keep title in English
+        addTask: 'Add Task',
+        enterTask: 'Enter your task...',
+        enterTags: 'Add tags (use commas)',
+        deadline: 'Deadline',
+        selectTaskType: 'Select type',
+        editTask: 'Edit Task',
+        editTaskContent: 'Task Content',
+        saveEdit: 'Save',
+        cancel: 'Cancel',
+        confirm: {
+            yes: 'Yes',
+            no: 'No',
+            resetAll: 'Reset all progress?',
+            resetCategory: 'Reset %s progress?',
+            deleteAll: 'Delete all tasks? (Cannot be undone)',
+            deleteCategory: 'Delete all tasks in %s? (Cannot be undone)'
+        },
+        categories: {
+            all: 'All',
+            normal: 'Normal',
+            daily: 'Daily',
+            weekly: 'Weekly'
+        },
+        filters: {
+            all: 'All',
+            active: 'Active',
+            completed: 'Completed'
+        },        taskTypes: {
+            personal: 'Personal',
+            friend: 'Friend',
+            boss: 'Boss',
+            external: 'Work'
+        },
+        resetInfo: {
+            daily: 'Resets daily at 6 AM',
+            weekly: 'Resets Monday at 6 AM'
+        },
+        tooltips: {
+            resetProgress: 'Reset All Progress',
+            deleteAll: 'Delete All Tasks',
+            themeToggle: 'Toggle Theme',
+            login: 'Login',
+            language: '한국어로 전환'
+        }
+    },
+    ko: {
+        title: 'My Tasks',  // Keep consistent in Korean
+        addTask: '할 일 추가',
+        enterTask: '할 일을 입력하세요...',
+        enterTags: '태그 입력 (쉼표로 구분)',
+        deadline: '마감기한',
+        selectTaskType: '작업 유형 선택',
+        editTask: '할 일 수정',
+        editTaskContent: '할 일 내용',
+        saveEdit: '수정하기',
+        cancel: '취소',
+        confirm: {
+            yes: '예',
+            no: '아니오',
+            resetAll: '전체 진행 상태를 초기화할까요?',
+            resetCategory: '%s 진행 상태를 초기화할까요?',
+            deleteAll: '전체 할 일을 삭제할까요? (되돌릴 수 없음)',
+            deleteCategory: '%s의 할 일을 삭제할까요? (되돌릴 수 없음)'
+        },
+        categories: {
+            all: '전체',
+            normal: '일반',
+            daily: '매일',
+            weekly: '주간'
+        },
+        filters: {
+            all: '전체',
+            active: '진행 중',
+            completed: '완료'
+        },        taskTypes: {
+            personal: '개인',
+            friend: '지인',
+            boss: '상사',
+            external: '업무'
+        },
+        resetInfo: {
+            daily: '매일 오전 6시 초기화',
+            weekly: '월요일 오전 6시 초기화'
+        },
+        tooltips: {
+            resetProgress: '전체 진행 상태 초기화',
+            deleteAll: '모든 할 일 삭제',
+            themeToggle: '테마 전환',
+            login: '로그인',
+            language: 'Switch to English'
+        }
+    }
+};
+
+function updateLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem('language', lang);
+    
+    // Update UI texts
+    document.querySelector('h1').textContent = translations[lang].title;
+    document.querySelector('#todo-input').placeholder = translations[lang].enterTask;
+    document.querySelector('#tags-input').placeholder = translations[lang].enterTags;
+    document.querySelector('label[for="deadline-toggle"]').textContent = translations[lang].deadline;
+    document.querySelector('button[type="submit"]').textContent = translations[lang].addTask;
+
+    // Update category buttons
+    Object.entries(translations[lang].categories).forEach(([key, value]) => {
+        document.querySelector(`#category-${key}`).textContent = value;
+    });
+
+    // Update filter buttons
+    Object.entries(translations[lang].filters).forEach(([key, value]) => {
+        document.querySelector(`#filter-${key}`).textContent = value;
+    });
+
+    // Update task type select placeholder
+    const taskTypeSelect = document.querySelector('#task-type');
+    const defaultOption = taskTypeSelect.querySelector('option[value=""]');
+    defaultOption.textContent = translations[lang].selectTaskType;
+
+    // Update task type options
+    Object.entries(translations[lang].taskTypes).forEach(([key, value]) => {
+        const option = taskTypeSelect.querySelector(`option[value="${key}"]`);
+        if (option) option.textContent = value;
+    });
+
+    updateTooltips(lang); // Update tooltips to new language
+
+    // Update reset info text
+    if (currentCategory === 'daily') {
+        resetTime.textContent = translations[lang].resetInfo.daily;
+    } else if (currentCategory === 'weekly') {
+        resetTime.textContent = translations[lang].resetInfo.weekly;
+    }
+
+    renderTodos(); // Refresh todo list to update any translated content
+}
+
+// Update tooltips for menu buttons
+function updateTooltips(lang) {
+    const tooltips = translations[lang].tooltips;
+    // Update tooltips for menu buttons
+    document.getElementById('reset-progress').setAttribute('data-tooltip', tooltips.resetProgress);
+    document.getElementById('delete-all').setAttribute('data-tooltip', tooltips.deleteAll);
+    document.getElementById('theme-toggle').setAttribute('data-tooltip', tooltips.themeToggle);
+    document.getElementById('login-btn').setAttribute('data-tooltip', tooltips.login);
+    document.getElementById('language-toggle').setAttribute('data-tooltip', tooltips.language);
+}
+
+// Language toggle event listener
+languageToggle.addEventListener('click', () => {
+    const newLang = currentLanguage === 'en' ? 'ko' : 'en';
+    updateLanguage(newLang);
+});
+
+// Cleanup function for event listeners
+function cleanupEventListeners() {
+    // Remove all existing event listeners
+    mainOption?.removeEventListener('click', toggleMenu);
+    document.removeEventListener('click', handleOutsideClick);
+    resetProgressBtn?.removeEventListener('click', handleResetProgress);
+    deleteAllBtn?.removeEventListener('click', handleDeleteAll);
+    loginBtn?.removeEventListener('click', handleLogin);
+}
+
+// Event handler functions
+function handleOutsideClick(e) {
+    if (isMenuOpen && circularMenuItems && !circularMenuItems.contains(e.target) && !mainOption.contains(e.target)) {
+        toggleMenu();
+    }
+}
+
+function handleResetProgress(e) {
+    e.stopPropagation();
+    resetProgress();
+    toggleMenu();
+}
+
+function handleDeleteAll(e) {
+    e.stopPropagation();
+    if (currentCategory === 'all') {  // 전체 카테고리일 때만 동작
+        deleteAllTodos();
+    }
+    toggleMenu();
+}
+
+function handleLogin(e) {
+    e.stopPropagation();
+    openLoginModal();
+    toggleMenu();
+}
+
+// Toggle menu state with animation support
+function toggleMenu(e) {
+    if (e) {
+        e.stopPropagation();
+    }
+    
+    if (menuToggleTimeout) {
+        clearTimeout(menuToggleTimeout);
+    }
+
+    isMenuOpen = !isMenuOpen;
+    
+    if (isMenuOpen) {
+        mainOption.classList.add('active');
+        circularMenuItems.classList.remove('scale-0', 'opacity-0');
+        circularMenuItems.classList.add('open');
+    } else {
+        mainOption.classList.remove('active');
+        circularMenuItems.classList.remove('open');
+        circularMenuItems.classList.add('scale-0', 'opacity-0');
+    }
+}
+
+// Initialize circular menu
+function initializeCircularMenu() {
+    // Clean up existing event listeners
+    cleanupEventListeners();
+    
+    // Add event listeners for menu functionality
+    mainOption?.addEventListener('click', toggleMenu);
+    document.addEventListener('click', handleOutsideClick);
+    resetProgressBtn?.addEventListener('click', handleResetProgress);
+    deleteAllBtn?.addEventListener('click', handleDeleteAll);
+    loginBtn?.addEventListener('click', handleLogin);
+
+    // Set initial menu state
+    isMenuOpen = false;
+    if (circularMenuItems) {
+        circularMenuItems.classList.remove('open');
+        circularMenuItems.classList.add('scale-0', 'opacity-0');
+    }
+}
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', () => {
+    // Clean up any existing event listeners
+    cleanupEventListeners();
+    
+    // Initialize components
+    loadTodos();
+    initializeTheme();
+    initializeCircularMenu();
+    renderTodos();
+    updateLanguage(currentLanguage);
+    checkResets();
+
+    // Set up reset check interval
+    setInterval(checkResets, 60000);
+});
+
+
+// Form submission handler for new todos
+todoForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = todoInput.value.trim();
+    if (!text) return;
+
+    const newTodo = {
+        id: generateUniqueId(),
+        text,
+        completed: false
+    };
+
+    // Add deadline if enabled and in normal category
+    if (currentCategory === 'normal' && isDeadlineEnabled) {
+        const deadlineValue = deadlineInput.value;
+        if (deadlineValue) {
+            newTodo.deadline = deadlineValue;
+        }
+    }
+
+    // Add task type and tags if present
+    const taskType = document.getElementById('task-type');
+    const tagsInput = document.getElementById('tags-input');
+    
+    if (taskType && taskType.value) {
+        newTodo.taskType = taskType.value;
+    }
+
+    if (tagsInput && tagsInput.value.trim()) {
+        newTodo.tags = tagsInput.value.trim().split(',').map(tag => tag.trim());
+    }
+
+    // Add to the current category
+    todos[currentCategory].push(newTodo);
+    
+    // Reset form
+    todoInput.value = '';
+    if (taskType) taskType.value = '';
+    if (tagsInput) tagsInput.value = '';
+    if (isDeadlineEnabled) {
+        deadlineInput.value = '';
+        deadlineToggle.click(); // Turn off deadline toggle
+    }
+    toggleExtendedForm(false);
+
+    saveTodos();
+    renderTodos();
+});
+
+// Reset progress for current category
+function resetProgress() {
+  if (currentCategory === 'all') {
+    const message = translations[currentLanguage].confirm.resetAll;
+    showConfirm(message).then(confirmed => {
+      if (confirmed) {
+        Object.keys(todos).forEach(category => {
+          todos[category].forEach(todo => todo.completed = false);
         });
         saveTodos();
         renderTodos();
-        updateTodoCount();
-        updateResetInfo();
-    }
-});
-
-// Delete all tasks functionality (circular menu)
-deleteAllButton.addEventListener('click', () => {
-  if (confirm('모든 카테고리의 모든 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-    ['normal', 'daily', 'weekly'].forEach(category => {
-      todos[category] = [];
+      }
     });
-    saveTodos();
-    renderTodos();
-    updateTodoCount();
-  }
-});
-
-// Reset progress (circular menu) - renamed from reset-all to be more descriptive
-resetProgressButton.addEventListener('click', () => {
-  if (confirm('모든 카테고리의 진행도를 초기화하시겠습니까?')) {
-    Object.keys(todos).forEach(category => {
-      todos[category].forEach(todo => {
-        todo.completed = false;
-      });
+  } else {
+    const message = translations[currentLanguage].confirm.resetCategory.replace('%s', translations[currentLanguage].categories[currentCategory]);
+    showConfirm(message).then(confirmed => {
+      if (confirmed) {
+        todos[currentCategory].forEach(todo => todo.completed = false);
+        saveTodos();
+        renderTodos();
+      }
     });
-    saveTodos();
-    renderTodos();
-    updateTodoCount();
   }
-});
+}
 
+// Delete all todos from every category
+function deleteAllTodos() {
+    const message = translations[currentLanguage].confirm.deleteAll;
+    showConfirm(message).then(confirmed => {
+        if (confirmed) {
+            Object.keys(todos).forEach(category => {
+                todos[category] = [];
+            });
+            saveTodos();
+            renderTodos();
+        }
+    });
+}
 
-// Update reset button visibility
-function updateResetButtonVisibility() {
-    const resetInfo = document.getElementById('reset-info');
-    
-    if (currentCategory === 'normal' || currentCategory === 'all') {
-        // normal이나 all 카테고리에서는 숨김
-        manualReset.classList.add('hidden');
-        resetInfo.classList.add('hidden');
-    } else if (currentCategory === 'daily' || currentCategory === 'weekly') {
-        const hasTasks = todos[currentCategory].length > 0;
+// Show confirm modal
+function showConfirm(message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const messageEl = document.getElementById('confirm-message');
         
-        // Daily나 Weekly 카테고리에서만 리셋 UI 표시
-        if (hasTasks) {
-            manualReset.classList.remove('hidden');
-            resetInfo.classList.remove('hidden');
-            
-            // 카테고리에 따른 리셋 시간 텍스트 업데이트
-            const resetTimeText = currentCategory === 'daily' ? 
-                'Resets at 6 AM' : 
-                'Resets Monday at 6 AM';
-            document.getElementById('reset-time').textContent = resetTimeText;
+        messageEl.textContent = message;
+        modal.classList.remove('hidden');
+        
+        const yesBtn = document.getElementById('confirm-yes');
+        const noBtn = document.getElementById('confirm-no');
+
+        // Update button text based on language
+        yesBtn.textContent = translations[currentLanguage].confirm.yes;
+        noBtn.textContent = translations[currentLanguage].confirm.no;
+        
+        function cleanup() {
+            modal.classList.add('hidden');
+            yesBtn.removeEventListener('click', handleYes);
+            noBtn.removeEventListener('click', handleNo);
+        }
+        
+        function handleYes() {
+            cleanup();
+            resolve(true);
+        }
+        
+        function handleNo() {
+            cleanup();
+            resolve(false);
+        }
+        
+        yesBtn.addEventListener('click', handleYes);
+        noBtn.addEventListener('click', handleNo);
+    });
+}
+
+// Todo item edit functionality
+let editingTodo = null; // 현재 수정 중인 할 일
+let isEditDeadlineEnabled = false;
+
+// Edit button in renderTodos
+function renderTodos() {
+    const todoList = document.getElementById('todo-list');
+    todoList.innerHTML = '';
+
+    let todosToRender = [];
+    if (currentCategory === 'all') {
+        Object.entries(todos).forEach(([category, categoryTodos]) => {
+            todosToRender = todosToRender.concat(
+                categoryTodos.map(todo => ({ ...todo, category }))
+            );
+        });
+    } else {
+        todosToRender = todos[currentCategory].map(todo => ({
+            ...todo,
+            category: currentCategory
+        }));
+    }
+
+    // Apply filter
+    if (currentFilter === 'active') {
+        todosToRender = todosToRender.filter(todo => !todo.completed);
+    } else if (currentFilter === 'completed') {
+        todosToRender = todosToRender.filter(todo => todo.completed);
+    }
+
+    // Render each todo
+    todosToRender.forEach(todo => {
+        const li = document.createElement('li');
+        const isDark = document.documentElement.classList.contains('dark');
+
+        li.className = `group flex items-center justify-between ${
+            isDark ? 'bg-gray-800/50' : 'bg-white'
+        } px-6 py-4 rounded-xl border ${
+            isDark ? 'border-gray-700/50 hover:border-purple-500/50' : 'border-gray-200 hover:border-blue-500/50'
+        } transition-all shadow-sm`;
+
+        // Left section with checkbox and text
+        const leftSection = document.createElement('div');
+        leftSection.className = 'flex items-center gap-4 flex-1 min-w-0';
+        
+        const checkbox = document.createElement('button');
+        checkbox.className = `min-w-[20px] min-h-[20px] w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+            todo.completed
+                ? (isDark ? 'border-purple-500 bg-purple-500' : 'border-blue-500 bg-blue-500')
+                : (isDark ? 'border-gray-600' : 'border-gray-300')
+        }`;
+
+        if (todo.completed) {
+            checkbox.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        }
+
+        checkbox.onclick = () => toggleTodo(todo.category, todo.id);
+
+        // Text content with category tag
+        const textContent = document.createElement('div');
+        textContent.className = 'flex items-center min-w-0 flex-1';
+
+        // Create wrapper for text and tags
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = 'flex flex-col gap-1 min-w-0';
+
+        // Add main text with smaller size
+        const mainText = document.createElement('span');
+        mainText.textContent = todo.text;
+        mainText.className = 'text-sm truncate';
+
+        // Right section for deadline, edit and delete buttons
+        const rightSection = document.createElement('div');
+        rightSection.className = 'flex items-center gap-3 ml-4';
+
+        // Add deadline if exists
+        if (todo.deadline) {
+            const deadlineEl = document.createElement('span');
+            deadlineEl.className = 'text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap';
+            deadlineEl.setAttribute('data-deadline', todo.deadline);
+            deadlineEl.textContent = formatTimeRemaining(todo.deadline);
+            rightSection.appendChild(deadlineEl);
+        }
+
+        // Edit button
+        const editBtn = document.createElement('button');
+        editBtn.className = 'text-gray-600 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity';
+        editBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
+        editBtn.onclick = () => showEditModal(todo);
+        rightSection.appendChild(editBtn);
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity';
+        deleteBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+        deleteBtn.onclick = () => deleteTodo(todo.category, todo.id);
+        rightSection.appendChild(deleteBtn);
+
+        // Create container for tags and task type
+        const tagContainer = document.createElement('div');
+        tagContainer.className = 'flex flex-wrap gap-1';
+        
+        // Add task type indicator if exists and is not empty
+        if (todo.taskType && todo.taskType !== '') {
+            const typeIndicator = document.createElement('span');
+            typeIndicator.className = `text-xs px-2 py-0.5 rounded-full ${
+                {
+                    personal: 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300',
+                    friend: 'bg-green-200 text-green-700 dark:bg-green-800 dark:text-green-300',
+                    boss: 'bg-red-200 text-red-700 dark:bg-red-800 dark:text-red-300',
+                    external: 'bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-300'
+                }[todo.taskType]
+            }`;
+            typeIndicator.textContent = translations[currentLanguage].taskTypes[todo.taskType];
+            tagContainer.appendChild(typeIndicator);
+        }
+        
+        // Add tags if exist
+        if (todo.tags && todo.tags.length > 0) {
+            todo.tags.forEach(tag => {
+                const tagEl = document.createElement('span');
+                tagEl.className = 'text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+                tagEl.textContent = tag;
+                tagContainer.appendChild(tagEl);
+            });
+        }
+        
+        // Add category tag in all view
+        if (currentCategory === 'all') {
+            const categoryTag = document.createElement('span');
+            categoryTag.className = `text-xs px-2 py-0.5 rounded-full ${
+                {
+                    normal: 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300',
+                    daily: 'bg-green-200 text-green-700 dark:bg-green-800 dark:text-green-300',
+                    weekly: 'bg-purple-200 text-purple-700 dark:bg-purple-800 dark:text-purple-300'
+                }[todo.category]
+            }`;
+            categoryTag.textContent = translations[currentLanguage].categories[todo.category];
+            tagContainer.appendChild(categoryTag);
+        }
+
+        // Add tag container if it has any content
+        if (tagContainer.children.length > 0) {
+            contentWrapper.appendChild(mainText);
+            contentWrapper.appendChild(tagContainer);
         } else {
-            manualReset.classList.add('hidden');
-            resetInfo.classList.add('hidden');
+            contentWrapper.appendChild(mainText);
+        }
+
+        textContent.appendChild(contentWrapper);
+        leftSection.appendChild(checkbox);
+        leftSection.appendChild(textContent);
+        
+        li.appendChild(leftSection);
+        li.appendChild(rightSection);
+        todoList.appendChild(li);
+    });
+
+    updateTodoCount();
+    updateResetInfo();
+}
+
+// Show edit modal
+function showEditModal(todo) {
+    if (!todo) {
+        console.error('Todo item is required');
+        return;
+    }editingTodo = todo;
+    const editModal = document.getElementById('edit-modal');
+    if (!editModal) {
+        console.error('Edit modal element not found');
+        return;
+    }
+    const editForm = document.getElementById('edit-form');
+    const editText = document.getElementById('edit-text');
+    const editTags = document.getElementById('edit-tags');
+    const editTaskType = document.getElementById('edit-task-type');
+    const editDeadlineSection = document.getElementById('edit-deadline-section');
+    const editDeadlineToggle = document.getElementById('edit-deadline-toggle');
+    const editDeadlineInput = document.getElementById('edit-deadline-input');
+    const editDeadlineInputContainer = document.getElementById('edit-deadline-input-container');
+
+    // 수정할 할 일의 현재 값들을 입력창에 설정
+    editText.value = todo.text;
+    editTags.value = todo.tags ? todo.tags.join(', ') : '';
+    editTaskType.value = todo.taskType || '';
+    handleEditTagsInput();
+
+    // 마감기한 섹션은 일반 카테고리에서만 보이도록
+    if (todo.category === 'normal') {
+        editDeadlineSection.classList.remove('hidden');
+        if (todo.deadline) {
+            isEditDeadlineEnabled = true;
+            editDeadlineToggle.classList.add('bg-blue-500');
+            editDeadlineToggle.querySelector('div').classList.add('translate-x-6');
+            editDeadlineInputContainer.classList.remove('hidden');
+            editDeadlineInput.value = todo.deadline;
+        } else {
+            isEditDeadlineEnabled = false;
+            editDeadlineToggle.classList.remove('bg-blue-500');
+            editDeadlineToggle.querySelector('div').classList.remove('translate-x-6');
+            editDeadlineInputContainer.classList.add('hidden');
+            editDeadlineInput.value = '';
+        }
+    } else {
+        editDeadlineSection.classList.add('hidden');
+    }
+
+    // 모달 표시
+    editModal.classList.remove('hidden');
+
+    // 첫 번째 입력창에 포커스
+    editText.focus();
+}
+
+// Close edit modal
+function closeEditModal() {
+    const editModal = document.getElementById('edit-modal');
+    editModal.classList.add('hidden');
+    editingTodo = null;
+    isEditDeadlineEnabled = false;
+}
+
+// Handle edit tags input
+function handleEditTagsInput() {
+    const editTags = document.getElementById('edit-tags');
+    const editTagsPreview = document.getElementById('edit-tags-preview');
+
+    const tags = editTags.value.split(',')
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0);
+
+    const processedTags = tags.map(tag => {
+        // 입력된 태그 정규화 및 자동 수정
+        const normalizedTag = normalizeHangul(tag);
+        const correctedTag = findClosestMatch(normalizedTag, spellingSuggestions);
+        
+        // 번역 매핑 확인
+        const translatedTag = tagMappings[correctedTag] || correctedTag;
+        
+        return {
+            original: tag,
+            corrected: correctedTag,
+            processed: translatedTag,
+            translated: translatedTag !== correctedTag,
+            wasFixed: correctedTag !== normalizedTag
+        };
+    });
+
+    // Update preview
+    editTagsPreview.innerHTML = processedTags.map(tag => {
+        const classes = [
+            'tag',
+            tag.translated ? 'translated' : '',
+            tag.wasFixed ? 'corrected' : ''
+        ].filter(Boolean).join(' ');
+        
+        let tooltip = '';
+        if (tag.wasFixed && tag.translated) {
+            tooltip = `${tag.original} → ${tag.corrected} → ${tag.processed}`;
+        } else if (tag.wasFixed) {
+            tooltip = `${tag.original} → ${tag.corrected}`;
+        } else if (tag.translated) {
+            tooltip = `${tag.original} → ${tag.processed}`;
+        }
+        
+        return `<span class="${classes}" title="${tooltip}">${
+            currentLanguage === 'ko' ? (tag.wasFixed ? tag.corrected : tag.original) : tag.processed
+        }</span>`;
+    }).join('');
+    
+    return processedTags.map(tag => tag.processed);
+}
+
+// Edit deadline toggle functionality
+document.getElementById('edit-deadline-toggle').addEventListener('click', () => {
+    isEditDeadlineEnabled = !isEditDeadlineEnabled;
+    const toggle = document.getElementById('edit-deadline-toggle');
+    const container = document.getElementById('edit-deadline-input-container');
+    
+    toggle.classList.toggle('bg-blue-500', isEditDeadlineEnabled);
+    toggle.querySelector('div').classList.toggle('translate-x-6', isEditDeadlineEnabled);
+    container.classList.toggle('hidden', !isEditDeadlineEnabled);
+});
+
+// Edit tags input event listener
+document.getElementById('edit-tags').addEventListener('input', handleEditTagsInput);
+
+// Edit form submit
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!editingTodo) return;
+
+    const editText = document.getElementById('edit-text').value.trim();
+    if (!editText) {
+        alert(translations[currentLanguage].editTaskContent);
+        return;
+    }
+
+    // 현재 수정중인 할 일의 인덱스 찾기
+    const todoIndex = todos[editingTodo.category].findIndex(todo => todo.id === editingTodo.id);
+    if (todoIndex === -1) return;
+
+    // 수정된 할 일 객체 생성
+    const updatedTodo = {
+        ...editingTodo,
+        text: editText,
+        tags: handleEditTagsInput(),
+        taskType: document.getElementById('edit-task-type').value
+    };
+
+    // 마감기한 처리 (일반 카테고리일 때만)
+    if (editingTodo.category === 'normal') {
+        if (isEditDeadlineEnabled) {
+            const deadline = document.getElementById('edit-deadline-input').value;
+            if (!deadline) {
+                alert('마감기한을 입력하거나 마감기한 옵션을 비활성화해주세요.');
+                return;
+            }
+            updatedTodo.deadline = deadline;
+        } else {
+            delete updatedTodo.deadline;
         }
     }
+
+    // 할 일 업데이트
+    todos[editingTodo.category][todoIndex] = updatedTodo;
+    saveTodos();
+    renderTodos();
+
+    // 모달 닫기
+    closeEditModal();
+});
+
+// Cancel edit
+document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+
+// Initialize CSS styles for tags
+const style = document.createElement('style');
+style.textContent = `
+    .tag.translated {
+        border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+        cursor: help;
+    }
+    .tag.corrected {
+        border-top: 2px solid rgba(34, 197, 94, 0.5);
+        cursor: help;
+    }
+    .tag.corrected.translated {
+        border: 2px solid rgba(168, 85, 247, 0.5);
+        cursor: help;
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize language
+updateLanguage(currentLanguage);
+
+// Initialize the app
+function initializeApp() {
+    loadTodos();
+    initializeTheme();
+    setCategory('all');
+    updateLanguage(currentLanguage);
+    renderTodos();
+    updateTodoCount();
+    checkResets();
 }
 
-// Circular Menu Toggle
-mainOption.addEventListener('click', () => {
-    const circularMenu = document.getElementById('circular-menu');
-    const isActive = circularMenu.classList.toggle('active');
-    circularMenuItems.classList.toggle('open', isActive);
+// Initialize everything when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+    // Wait for a moment to ensure all elements are properly loaded
+    setTimeout(initializeCircularMenu, 100);
 });
 
-// Menu item click handlers
-resetProgressButton.addEventListener('click', () => {
-    // 진행 상황 초기화 로직
-    isMenuOpen = false;
-    document.getElementById('circular-menu').classList.remove('active');
-    circularMenuItems.classList.remove('open');
-});
-
-deleteAllButton.addEventListener('click', () => {
-    // 모든 항목 삭제 로직
-    isMenuOpen = false;
-    document.getElementById('circular-menu').classList.remove('active');
-    circularMenuItems.classList.remove('open');
-});
-
-loginBtn.addEventListener('click', () => {
-    // 로그인 로직
-    isMenuOpen = false;
-    document.getElementById('circular-menu').classList.remove('active');
-    circularMenuItems.classList.remove('open');
-});
-
-// Close menu when clicking outside
-document.addEventListener('click', (event) => {
-    const circularMenu = document.getElementById('circular-menu');
-    if (!circularMenu.contains(event.target) && circularMenuItems.classList.contains('open')) {
-        circularMenu.classList.remove('active');
-        circularMenuItems.classList.remove('open');
-        isMenuOpen = false;
-    }
-});
-
-// Login Functionality
-const loginModal = document.getElementById('login-modal');
-const loginSubmit = document.getElementById('login-submit');
-const loginCancel = document.getElementById('login-cancel');
-const usernameInput = document.getElementById('username-input');
-
-loginBtn.addEventListener('click', () => {
-    loginModal.classList.remove('hidden');
-});
-
-loginCancel.addEventListener('click', () => {
-    loginModal.classList.add('hidden');
-    usernameInput.value = '';
-});
-
-loginSubmit.addEventListener('click', () => {
-    const username = usernameInput.value.trim();
-    if (username) {
-        localStorage.setItem('username', username);
-        loginModal.classList.add('hidden');
-        loadUserTodos(username);
-    }
-});
-
-// Load user's todos
-function loadUserTodos(username) {
-    const userTodos = localStorage.getItem(`todos_${username}`);
-    if (userTodos) {
-        todos = JSON.parse(userTodos);
-        renderTodos();
-    } else {
-        todos = { normal: [], daily: [], weekly: [] };
-        renderTodos();
-    }
+// Login related functions
+function openLoginModal() {
+  const loginModal = document.getElementById('login-modal');
+  const usernameInput = document.getElementById('username-input');
+  loginModal.classList.remove('hidden');
+  usernameInput.value = '';
+  usernameInput.focus();
 }
 
-// Initializations
-initializeTheme();
-loadTodos();
-setCategory('all'); // 시작 시 'all' 카테고리가 선택되도록 변경
-updateResetButtonVisibility();
-setInterval(checkResets, 60000);
-checkResets();
-renderTodos();
+function closeLoginModal() {
+  const loginModal = document.getElementById('login-modal');
+  loginModal.classList.add('hidden');
+}
+
+function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById('username-input').value.trim();
+  if (username) {
+    localStorage.setItem('username', username);
+    loadTodos(); // Load todos for the new user
+    renderTodos();
+    closeLoginModal();
+  }
+}
+
+// Login modal event listeners
+document.getElementById('login-submit')?.addEventListener('click', handleLoginSubmit);
+document.getElementById('login-cancel')?.addEventListener('click', closeLoginModal);
+document.addEventListener('click', (e) => {
+  const loginModal = document.getElementById('login-modal');
+  const loginForm = document.querySelector('#login-modal > div > div');
+  if (e.target === loginModal) {
+    closeLoginModal();
+  }
+});

@@ -1,24 +1,43 @@
+/* Z-index hierarchy */
+:root {
+    --z-base: 1000;
+    --z-menu: 1100;
+    --z-tooltip: 99999;
+}
+
 #circular-menu {
     position: relative;
-    z-index: 1000;
-    margin-bottom: 1rem; /* add 버튼 기준으로 위치 조정 */
+    z-index: var(--z-menu);
+}
+
+#main-option {
+    position: relative;
+    z-index: var(--z-base);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#main-option.active {
+    transform: rotate(135deg);
 }
 
 #circular-menu-items {
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    width: 160px;  /* 부채꼴을 위해 크기 증가 */
+    transform: translate(-50%, -50%);
+    width: 160px;
     height: 160px;
     opacity: 0;
-    transition: all 0.4s ease-out;
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: var(--z-base);
     pointer-events: none;
 }
 
 #circular-menu-items.open {
-    transform: translate(-50%, -50%) scale(1);
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
 }
 
@@ -28,9 +47,12 @@
     height: 32px;
     top: 50%;
     left: 50%;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translate(-50%, -50%);
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    z-index: var(--z-menu);
 }
 
 /* Position for each button when menu is open */
@@ -38,30 +60,60 @@
     opacity: 1;
 }
 
+/* Category button styles */
+.category-btn {
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.category-btn:hover {
+    opacity: 0.8;
+}
+
+.category-btn.active {
+    opacity: 1;
+}
+
+.category-btn.active:hover {
+    opacity: 1;
+}
+
 #circular-menu-items.open #reset-progress {
-    transform: translate(-50%, -50%) rotate(-120deg) translate(70px) rotate(120deg);  /* 시작점: -120도 */
-    transition-delay: 0s;
+    transform: translate(-50%, -50%) rotate(-120deg) translate(70px) rotate(120deg);
+    transition-delay: 0.05s;
+    z-index: 1002;
 }
 
 #circular-menu-items.open #delete-all {
-    transform: translate(-50%, -50%) rotate(-67deg) translate(70px) rotate(67deg);  /* -120 + 53 = -67도 */
+    transform: translate(-50%, -50%) rotate(-77.5deg) translate(70px) rotate(77.5deg);
     transition-delay: 0.1s;
+    z-index: 1002;
 }
 
 #circular-menu-items.open #theme-toggle {
-    transform: translate(-50%, -50%) rotate(-14deg) translate(70px) rotate(14deg);  /* -67 + 53 = -14도 */
-    transition-delay: 0.2s;
+    transform: translate(-50%, -50%) rotate(-35deg) translate(70px) rotate(35deg);
+    transition-delay: 0.15s;
+    z-index: 1002;
 }
 
 #circular-menu-items.open #login-btn {
-    transform: translate(-50%, -50%) rotate(40deg) translate(70px) rotate(-40deg);  /* -14 + 54 = 40도 */
-    transition-delay: 0.3s;
+    transform: translate(-50%, -50%) rotate(7.5deg) translate(70px) rotate(-7.5deg);
+    transition-delay: 0.2s;
+    z-index: 1002;
+}
+
+#circular-menu-items.open #language-toggle {
+    transform: translate(-50%, -50%) rotate(50deg) translate(70px) rotate(-50deg);
+    transition-delay: 0.25s;
+    z-index: var(--z-menu);
 }
 
 /* Menu closing animation */
 #circular-menu-items:not(.open) button {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
+    transform: translate(-50%, -50%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     transition-delay: 0s;
 }
 
@@ -114,33 +166,319 @@
     background-color: rgba(31, 41, 55, 1) !important;
 }
 
-/* Tooltip styles 수정 */
-button[title]:hover::after {
-    content: attr(title);
+/* Remove all default tooltips */
+[title],
+select,
+[data-tooltip] {
+    position: relative;
+}
+
+[title]::before,
+[title]::after,
+select::before,
+select::after {
+    display: none !important;
+}
+
+/* Custom tooltip styles */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::before {
+    content: attr(data-tooltip);
     position: absolute;
-    bottom: 120%;
+    bottom: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    padding: 4px 8px;
+    padding: 6px 10px;
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     border-radius: 4px;
     font-size: 12px;
     white-space: nowrap;
-    z-index: 1002;
-    opacity: 1;
+    z-index: calc(var(--z-tooltip) + 100) !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-tooltip]::after {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.8);
+    z-index: calc(var(--z-tooltip) + 100) !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
     pointer-events: none;
 }
 
-/* manual-reset 버튼의 기존 툴팁 숨기기 */
-#manual-reset span.absolute {
-    display: none !important;
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
-/* 원형 메뉴 버튼들의 tooltip 위치 조정 */
-#circular-menu-items button[title]:hover::after {
+/* Dark mode adjustments */
+.dark [data-tooltip]::before {
+    background-color: rgba(31, 41, 55, 0.95);
+    color: #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.dark [data-tooltip]::after {
+    border-top-color: rgba(31, 41, 55, 0.95);
+}
+
+/* Circular menu specific adjustments */
+#circular-menu-items button[data-tooltip]::before {
     bottom: auto;
-    top: -30px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -40px;
+}
+
+#circular-menu-items button[data-tooltip]::after {
+    bottom: auto;
+    top: -12px;
+    transform: translateX(-50%) rotate(180deg);
+}
+
+/* Language toggle button tooltip specific adjustment */
+#circular-menu-items #language-toggle[data-tooltip]::before {
+    bottom: auto;
+    top: -40px;
+}
+
+#circular-menu-items #language-toggle[data-tooltip]::after {
+    bottom: auto;
+    top: -12px;
+    transform: translateX(-50%) rotate(180deg);
+}
+
+/* Select element specific styles */
+select#task-type {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+#todo-form-extended {
+    max-height: 0;
+    overflow: visible; /* 변경: overflow를 visible로 설정 */
+    opacity: 0;
+    margin-top: 0;
+    transition: all 0.3s ease-in-out;
+    pointer-events: none;
+    padding: 0 8px;
+}
+
+#todo-form-extended.show {
+    max-height: none; /* 변경: 고정 높이 제거 */
+    opacity: 1;
+    margin-top: 0.5rem;
+    pointer-events: auto;
+}
+
+/* 드래그 중인 항목 스타일 */
+.todo-item.dragging {
+    opacity: 0.5;
+    cursor: move;
+}
+
+/* 드래그 오버 효과 */
+.todo-item.drag-over {
+    border-top: 2px solid #3B82F6;
+}
+
+/* 원형 메뉴 반응형 조정 */
+@media (max-width: 640px) {
+    #circular-menu {
+        position: relative;
+        right: 0;
+        margin-right: 0.5rem;
+    }
+
+    #circular-menu-items {
+        width: 140px;
+        height: 140px;
+    }
+
+    #circular-menu-items.open button {
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+
+    /* 원형 메뉴 버튼 위치 조정 */
+    #circular-menu-items.open #reset-progress {
+        transform: translate(-50%, -50%) rotate(-120deg) translate(60px) rotate(120deg);
+    }
+
+    #circular-menu-items.open #delete-all {
+        transform: translate(-50%, -50%) rotate(-67deg) translate(60px) rotate(67deg);
+    }
+
+    #circular-menu-items.open #theme-toggle {
+        transform: translate(-50%, -50%) rotate(-14deg) translate(60px) rotate(14deg);
+    }
+
+    #circular-menu-items.open #login-btn {
+        transform: translate(-50%, -50%) rotate(40deg) translate(60px) rotate(-40deg);
+    }
+}
+
+/* 헤더 내부 요소들의 간격 조정 */
+@media (max-width: 480px) {
+    .header-content {
+        gap: 0.5rem;
+    }
+
+    .progress-container {
+        min-width: 100px;
+    }
+}
+
+/* 드래그 앤 드롭을 위한 스타일 */
+.todo-item {
+    cursor: pointer;
+    user-select: none;
+}
+
+.todo-item:active {
+    cursor: grabbing;
+}
+
+/* 태그 프리뷰 영역 개선 */
+#tags-preview,
+.tag-preview {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 28px;
+    padding: 4px;
+    margin-top: 8px;
+    background: transparent;
+    border: 1px solid rgba(226, 232, 240, 0.5);
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.dark #tags-preview,
+.dark .tag-preview {
+    background: rgba(31, 41, 55, 0.3);
+    border-color: rgba(75, 85, 99, 0.2);
+}
+
+/* 공통 태그 스타일 */
+#tags-preview span,
+.tag,
+.tag-preview span {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    margin: 2px;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    font-size: 0.75rem;
+    border-radius: 9999px;
+    transition: all 0.2s ease;
+}
+
+/* 다크모드 태그 스타일 */
+.dark #tags-preview span,
+.dark .tag,
+.dark .tag-preview span {
+    background: rgba(189, 119, 255, 0.1);
+    color: #a855f7;
+}
+
+/* 태그 호버 효과 */
+#tags-preview span:hover,
+.tag:hover {
+    background: rgba(59, 130, 246, 0.15);
+    transform: translateY(-1px);
+}
+
+.dark #tags-preview span:hover,
+.dark .tag:hover {
+    background: rgba(189, 119, 255, 0.15);
+}
+
+/* 입력 필드 스타일 개선 */
+#todo-form-extended .flex {
+    position: relative;
+    z-index: 2;
+}
+
+#tags-input,
+#task-type {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    color: #1f2937;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: all 0.2s ease;
+}
+
+#tags-input::placeholder{
+    opacity: 1;
+}
+#task-type option:first-child {
+    color: #000000;
+    opacity: 1;
+}
+
+.dark #tags-input{
+    background-color: rgba(31, 41, 55, 0.5);
+    border-color: rgba(75, 85, 99, 0.5);
+    color: #b647fb;
+}
+.dark #task-type {
+    background-color: rgba(31, 41, 55, 0.5);
+    border-color: rgba(75, 85, 99, 0.5);
+    color: #b647fb;
+    opacity: 0.6;
+
+}
+
+.dark #tags-input::placeholder,
+.dark #task-type option:first-child {
+    color: #b647fb;
+    opacity: 0.6;
+}
+
+#tags-input:focus,
+#task-type:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    outline: none;
+}
+
+.dark #tags-input:focus,
+.dark #task-type:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* 선택 필드 화살표 */
+#task-type {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 32px;
+}
+
+.dark #task-type {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
 }
